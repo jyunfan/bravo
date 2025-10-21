@@ -1,15 +1,24 @@
-import { useState } from 'react'
-import { Rnd } from 'react-rnd'
 import { MapContainer } from './components/MapContainer'
 import './App.css'
+import { DroneTelemetryWidget } from './components/widgets/DroneTelemetryWidget';
+import { Rnd } from 'react-rnd'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <div>
       <MapContainer/>
+      <Rnd
+        default={{
+          x: 0,
+          y: 0,
+          width: 320,
+          height: 200,
+        }}
+      >
+        <DroneTelemetryWidget />
+      </Rnd>
     </div>
+
   );
 }
 
