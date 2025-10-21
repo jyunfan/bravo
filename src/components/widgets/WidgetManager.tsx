@@ -4,7 +4,7 @@
  * Manages widget state and provides widget registry
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { WidgetContainer, type WidgetConfig } from './WidgetContainer';
 import { DroneTelemetryWidget } from './DroneTelemetryWidget';
 import { useFleet } from '../../contexts/FleetContext.tsx';
