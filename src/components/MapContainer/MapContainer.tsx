@@ -23,6 +23,7 @@ export function MapContainer({ className = '' }: MapContainerProps) {
     // Initialize map
     map.current = new maplibregl.Map({
       container: mapContainer.current,
+      //style: 'https://demotiles.maplibre.org/style.json',
       style: 'https://api.maptiler.com/maps/hybrid/style.json?key=kSVQtZ7ooA4Sxv379Qgq',
       center: [121.4248, 25.1794], // Default center
       zoom: 9,

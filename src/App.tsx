@@ -1,24 +1,16 @@
+import { FleetProvider } from './contexts/FleetContext.tsx'
 import { MapContainer } from './components/MapContainer'
+import { WidgetManager } from './components/widgets/WidgetManager'
 import './App.css'
-import { DroneTelemetryWidget } from './components/widgets/DroneTelemetryWidget';
-import { Rnd } from 'react-rnd'
 
 function App() {
   return (
     <div>
-      <MapContainer/>
-      <Rnd
-        default={{
-          x: 0,
-          y: 0,
-          width: 320,
-          height: 200,
-        }}
-      >
-        <DroneTelemetryWidget />
-      </Rnd>
+      <FleetProvider>
+        <MapContainer />
+        <WidgetManager />
+      </FleetProvider>
     </div>
-
   );
 }
 
