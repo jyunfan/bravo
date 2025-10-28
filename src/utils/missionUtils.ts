@@ -380,3 +380,90 @@ export function isMissionTerminal(status: MissionStatus): boolean {
 export function canModifyMission(status: MissionStatus): boolean {
   return status === 'planned';
 }
+
+/**
+ * Converts waypoint coordinates to deck.gl format [longitude, latitude]
+ */
+export function waypointToDeckGLPosition(waypoint: Waypoint): [number, number] {
+  return [waypoint.coordinates.longitude, waypoint.coordinates.latitude];
+}
+
+/**
+ * Gets mission status color for visualization
+ */
+export function getMissionStatusColor(status: MissionStatus): [number, number, number, number] {
+  switch (status) {
+    case 'planned':
+      return [0, 123, 255, 200]; // Blue
+    case 'active':
+      return [40, 167, 69, 200]; // Green
+    case 'completed':
+      return [108, 117, 125, 200]; // Gray
+    case 'failed':
+      return [220, 53, 69, 200]; // Red
+    case 'cancelled':
+      return [255, 193, 7, 200]; // Yellow
+    default:
+      return [108, 117, 125, 200]; // Default gray
+  }
+}
+
+/**
+ * Processes mission data for deck.gl visualization
+ */
+export function processMissionsForVisualization(missions: Mission[]) {
+  const waypointData: any[] = [];
+  const lineData: any[] = [];
+  const textData: any[] = [];
+
+  missions.forEach((mission) => {
+    const color = getMissionStatusColor(mission.status);
+    
+    // Process waypoints
+    mission.waypoints.forEach((waypoint) => {
+      waypointData.push({
+        position: waypointToDeckGLPosition(waypoint),
+        radius: 8,
+        color: color,
+        missionId: mission.id,
+        missionName: mission.name,
+        waypointId: waypoint.id,
+        sequence: waypoint.sequence,
+        altitude: waypoint.coordinates.altitude,
+        status: mission.status
+      });
+
+      // Add waypoint labels
+      textData.push({
+        position: waypointToDeckGLPosition(waypoint),
+        text: `${waypoint.sequence}`,
+        color: [255, 255, 255, 255],
+        size: 12,
+        missionId: mission.id,
+        waypointId: waypoint.id
+      });
+    });
+
+    // Create line segments between waypoints
+    if (mission.waypoints.length > 1) {
+      const sortedWaypoints = sortWaypointsBySequence(mission.waypoints);
+      
+      for (let i = 0; i < sortedWaypoints.length - 1; i++) {
+        const current = sortedWaypoints[i];
+        const next = sortedWaypoints[i + 1];
+        
+        lineData.push({
+          sourcePosition: waypointToDeckGLPosition(current),
+          targetPosition: waypointToDeckGLPosition(next),
+          color: color,
+          width: 3,
+          missionId: mission.id,
+          missionName: mission.name,
+          status: mission.status
+        });
+      }
+    }
+  });
+
+  return { waypointData, lineData, textData };
+}

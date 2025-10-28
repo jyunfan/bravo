@@ -1,7 +1,7 @@
 # Project Context
 
 ## Purpose
-[Describe your project's purpose and goals]
+A web-based dashboard application for managing drone fleets, enabling operators to plan and execute missions effectively.
 
 ## Tech Stack
 - [List your primary technologies]
@@ -11,6 +11,7 @@
 - React Context API
 - React Testing Library
 - Vite
+- maplibre-gl deck.gl
 
 ## Project Structure
 ```

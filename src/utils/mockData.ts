@@ -70,8 +70,8 @@ export const mockMissions: Mission[] = [
       {
         id: 'waypoint-001-1',
         coordinates: {
-          latitude: 37.7749,
-          longitude: -122.4194,
+          latitude: 25.1794,
+          longitude: 121.4268, 
           altitude: 50
         },
         sequence: 1
@@ -79,8 +79,8 @@ export const mockMissions: Mission[] = [
       {
         id: 'waypoint-001-2',
         coordinates: {
-          latitude: 37.7759,
-          longitude: -122.4204,
+          latitude: 25.1994,
+          longitude: 121.4668,
           altitude: 50
         },
         sequence: 2
@@ -88,8 +88,8 @@ export const mockMissions: Mission[] = [
       {
         id: 'waypoint-001-3',
         coordinates: {
-          latitude: 37.7769,
-          longitude: -122.4214,
+          latitude: 25.2194,
+          longitude: 121.5068,
           altitude: 50
         },
         sequence: 3
@@ -97,8 +97,8 @@ export const mockMissions: Mission[] = [
       {
         id: 'waypoint-001-4',
         coordinates: {
-          latitude: 37.7749,
-          longitude: -122.4194,
+          latitude: 25.2394,
+          longitude: 121.5468,
           altitude: 50
         },
         sequence: 4
