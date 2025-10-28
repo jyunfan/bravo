@@ -7,6 +7,8 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import {MapboxOverlay} from '@deck.gl/mapbox';
+import {ScatterplotLayer} from '@deck.gl/layers';
 
 interface MapContainerProps {
   className?: string;
@@ -24,11 +26,13 @@ export function MapContainer({ className = '' }: MapContainerProps) {
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       //style: 'https://demotiles.maplibre.org/style.json',
-      style: 'https://api.maptiler.com/maps/hybrid/style.json?key=kSVQtZ7ooA4Sxv379Qgq',
+      //style: 'https://api.maptiler.com/maps/hybrid/style.json?key=kSVQtZ7ooA4Sxv379Qgq',
+      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
       center: [121.4248, 25.1794], // Default center
       zoom: 9,
       attributionControl: false
     });
+
 
     // Handle map load
     map.current.on('load', () => {
@@ -40,6 +44,24 @@ export function MapContainer({ className = '' }: MapContainerProps) {
         
         // Add fullscreen control with different positioning to avoid overlap
         //map.current.addControl(new maplibregl.FullscreenControl(), 'top-left');
+
+        const deckOverlay = new MapboxOverlay({
+            interleaved: true,
+            layers: [
+              new ScatterplotLayer({
+                id: 'deckgl-circle',
+                data: [
+                  {position: [121.4248, 25.1794]}
+                ],
+                getPosition: d => d.position,
+                getFillColor: [255, 0, 0, 100],
+                getRadius: 1000,
+                beforeId: 'watername_ocean' // In interleaved mode render the layer under map labels
+              })
+            ]
+          });
+          
+          map.current.addControl(deckOverlay);
       }
       
       // Trigger resize after map loads to ensure proper dimensions

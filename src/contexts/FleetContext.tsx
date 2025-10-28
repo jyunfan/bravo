@@ -166,7 +166,6 @@ export function FleetProvider({ children }: FleetProviderProps) {
               ...drone, 
               ...updates,
               capabilities: { ...drone.capabilities, ...updates.capabilities },
-              limits: { ...drone.limits, ...updates.limits },
               updatedAt: new Date().toISOString() 
             }
           : drone
