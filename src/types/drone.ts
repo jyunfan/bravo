@@ -4,6 +4,8 @@
  * TypeScript interfaces for drone data models and fleet management
  */
 
+import type { Mission } from './mission';
+
 export type DroneStatus = 'available' | 'in-mission' | 'maintenance' | 'offline';
 
 export interface DroneCapabilities {
@@ -26,6 +28,8 @@ export interface Drone {
   status: DroneStatus;
   /** Drone capabilities and specifications */
   capabilities: DroneCapabilities;
+  /** ID of the currently assigned mission */
+  currentMissionId?: string;
   /** Timestamp when drone was registered */
   registeredAt: string;
   /** Last updated timestamp */
@@ -35,8 +39,12 @@ export interface Drone {
 export interface FleetState {
   /** Array of all registered drones */
   drones: Drone[];
+  /** Array of all missions */
+  missions: Mission[];
   /** Currently selected drone for configuration */
   selectedDroneId: string | null;
+  /** Currently selected mission for configuration */
+  selectedMissionId: string | null;
   /** Loading state for async operations */
   isLoading: boolean;
   /** Error message if any */
@@ -79,4 +87,13 @@ export interface FleetStats {
   inMission: number;
   maintenance: number;
   offline: number;
+  // Mission statistics
+  missions: {
+    total: number;
+    planned: number;
+    active: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+  };
 }

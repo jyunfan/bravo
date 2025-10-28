@@ -3,3 +3,4 @@
  */
 
 export * from './drone.ts';
+export * from './mission.ts';

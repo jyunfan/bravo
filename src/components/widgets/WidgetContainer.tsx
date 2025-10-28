@@ -28,7 +28,7 @@ interface WidgetContainerProps {
 }
 
 export function WidgetContainer({ config, children, onUpdate, onClose }: WidgetContainerProps) {
-  const handleDragStop = (e: any, data: any) => {
+  const handleDragStop = (data: any) => {
     // Ensure the widget stays within bounds
     const boundedX = Math.max(0, Math.min(data.x, window.innerWidth - config.width));
     const boundedY = Math.max(0, Math.min(data.y, window.innerHeight - config.height));
@@ -36,7 +36,7 @@ export function WidgetContainer({ config, children, onUpdate, onClose }: WidgetC
     onUpdate(config.id, { x: boundedX, y: boundedY });
   };
 
-  const handleResizeStop = (e: any, direction: any, ref: any, delta: any, position: any) => {
+  const handleResizeStop = (ref: any, position: any) => {
     const newWidth = parseInt(ref.style.width);
     const newHeight = parseInt(ref.style.height);
     

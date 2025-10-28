@@ -4,17 +4,6 @@ import { WidgetManager } from './components/widgets/WidgetManager'
 import { BulletinPanel } from './components/BulletinPanel/BulletinPanel.tsx'
 import './App.css'
 
-import {Map, useControl} from 'react-map-gl/maplibre';
-import {MapboxOverlay} from '@deck.gl/mapbox';
-import type {DeckProps} from '@deck.gl/core';
-import {ScatterplotLayer} from '@deck.gl/layers';
-
-function DeckGLOverlay(props: DeckProps) {
-  const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
-  overlay.setProps(props);
-  return null;
-}
-
 function App() {
   /*
   const layers = [
