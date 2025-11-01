@@ -303,6 +303,7 @@ export function MapContainer({ className = '' }: MapContainerProps) {
   // Start editing existing mission
   // TODO: This function can be called from BulletinPanel or other components to enable editing
   // Currently unused but kept for future integration with mission list UI
+  /*
   const handleEditMission = (missionId: string) => {
     const mission = fleet.getMissionById(missionId);
     if (!mission) return;
@@ -313,6 +314,7 @@ export function MapContainer({ className = '' }: MapContainerProps) {
     setSelectedWaypoint(null);
     setValidationMessage(null);
   };
+  */
   
   // Save mission
   const handleSave = async () => {
