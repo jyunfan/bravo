@@ -1,29 +1,97 @@
 /**
  * MapContainer Component
  * 
- * MapLibre GL map integration with controls, drone markers, and mission waypoints
+ * MapLibre GL map integration with controls, drone markers, mission waypoints, and mission editor
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {ScatterplotLayer, LineLayer, TextLayer} from '@deck.gl/layers';
-import { mockMissions } from '../../utils/mockData';
-import { processMissionsForVisualization } from '../../utils/missionUtils';
+import { useFleet } from '../../contexts/FleetContext';
+import { processMissionsForVisualization, waypointToDeckGLPosition, MISSION_CONSTRAINTS } from '../../utils/missionUtils';
+import { WaypointEditor } from '../MissionEditor';
+import { generateWaypointId, sortWaypointsBySequence } from '../../utils/missionUtils';
+import type { Waypoint } from '../../types/mission';
 
 interface MapContainerProps {
   className?: string;
 }
 
+type EditMode = 'none' | 'new' | 'edit';
+
 export function MapContainer({ className = '' }: MapContainerProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const deckOverlayRef = useRef<MapboxOverlay | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   
-  // Process mission data for visualization
-  const { waypointData, lineData, textData } = processMissionsForVisualization(mockMissions);
-
+  // Edit mode state
+  const [editMode, setEditMode] = useState<EditMode>('none');
+  const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
+  const [draftWaypoints, setDraftWaypoints] = useState<Waypoint[]>([]);
+  const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  
+  // Mission metadata for new missions
+  const [newMissionName, setNewMissionName] = useState<string>('');
+  const [newMissionPriority, setNewMissionPriority] = useState<number>(5);
+  
+  const fleet = useFleet();
+  
+  // Process saved missions for visualization (excluding mission being edited)
+  const savedMissions = fleet.state.missions.filter(m => m.id !== editingMissionId);
+  const { waypointData, lineData, textData } = processMissionsForVisualization(savedMissions);
+  
+  // Process draft waypoints for preview
+  const getPreviewData = useCallback(() => {
+    if (draftWaypoints.length === 0) {
+      return { waypointData: [], lineData: [], textData: [] };
+    }
+    
+    const sortedWaypoints = sortWaypointsBySequence(draftWaypoints);
+    const previewColor = editMode === 'new' ? [255, 140, 0, 180] : [128, 128, 128, 180]; // Orange for new, gray for edit
+    const previewLineColor = editMode === 'new' ? [255, 140, 0, 150] : [128, 128, 128, 150];
+    
+    const previewWaypointData = sortedWaypoints.map(waypoint => ({
+      position: waypointToDeckGLPosition(waypoint),
+      radius: 10,
+      color: previewColor,
+      waypointId: waypoint.id,
+      sequence: waypoint.sequence,
+      altitude: waypoint.coordinates.altitude,
+      isPreview: true
+    }));
+    
+    const previewLineData: any[] = [];
+    for (let i = 0; i < sortedWaypoints.length - 1; i++) {
+      const current = sortedWaypoints[i];
+      const next = sortedWaypoints[i + 1];
+      
+      previewLineData.push({
+        sourcePosition: waypointToDeckGLPosition(current),
+        targetPosition: waypointToDeckGLPosition(next),
+        color: previewLineColor,
+        width: 4,
+        isPreview: true
+      });
+    }
+    
+    const previewTextData = sortedWaypoints.map(waypoint => ({
+      position: waypointToDeckGLPosition(waypoint),
+      text: `${waypoint.sequence}`,
+      color: [255, 255, 255, 255],
+      size: 14,
+      waypointId: waypoint.id
+    }));
+    
+    return { waypointData: previewWaypointData, lineData: previewLineData, textData: previewTextData };
+  }, [draftWaypoints, editMode]);
+  
+  const previewData = getPreviewData();
+  
+  // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
@@ -38,7 +106,6 @@ export function MapContainer({ className = '' }: MapContainerProps) {
       attributionControl: false
     });
 
-
     // Handle map load
     map.current.on('load', () => {
       setIsMapLoaded(true);
@@ -47,65 +114,13 @@ export function MapContainer({ className = '' }: MapContainerProps) {
       if (map.current) {
         map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
         
-        // Add fullscreen control with different positioning to avoid overlap
-        //map.current.addControl(new maplibregl.FullscreenControl(), 'top-left');
-
         const deckOverlay = new MapboxOverlay({
-            interleaved: true,
-            layers: [
-              // Mission waypoint lines (paths)
-              new LineLayer({
-                id: 'mission-lines',
-                data: lineData,
-                getSourcePosition: d => d.sourcePosition,
-                getTargetPosition: d => d.targetPosition,
-                getColor: d => d.color,
-                getWidth: d => d.width,
-                widthUnits: 'pixels', // Fixed width in pixels regardless of zoom
-                pickable: true,
-                beforeId: 'watername_ocean'
-              }),
-              // Mission waypoints (circles)
-              new ScatterplotLayer({
-                id: 'mission-waypoints',
-                data: waypointData,
-                getPosition: d => d.position,
-                getFillColor: d => d.color,
-                getRadius: d => d.radius,
-                radiusUnits: 'pixels', // Fixed radius in pixels regardless of zoom
-                pickable: true,
-                beforeId: 'watername_ocean'
-              }),
-              // Waypoint sequence numbers
-              new TextLayer({
-                id: 'waypoint-labels',
-                data: textData,
-                getPosition: d => d.position,
-                getText: d => d.text,
-                getColor: d => d.color,
-                getSize: d => d.size,
-                sizeUnits: 'pixels', // Fixed size in pixels regardless of zoom
-                fontFamily: 'Arial, sans-serif',
-                fontWeight: 'bold',
-                beforeId: 'watername_ocean'
-              }),
-              // Original test circle (keeping for reference)
-              /*
-              new ScatterplotLayer({
-                id: 'deckgl-circle',
-                data: [
-                  {position: [121.4248, 25.1794]}
-                ],
-                getPosition: d => d.position,
-                getFillColor: [255, 0, 0, 100],
-                getRadius: 1000,
-                beforeId: 'watername_ocean'
-              })
-                */
-            ]
-          });
-          
-          map.current.addControl(deckOverlay);
+          interleaved: true,
+          layers: []
+        });
+        
+        deckOverlayRef.current = deckOverlay;
+        map.current.addControl(deckOverlay);
       }
       
       // Trigger resize after map loads to ensure proper dimensions
@@ -133,14 +148,249 @@ export function MapContainer({ className = '' }: MapContainerProps) {
       }
     };
   }, []);
-
-  // Add drone markers when map is loaded and drones are available
+  
+  // Update deck.gl layers when data changes
+  useEffect(() => {
+    if (!deckOverlayRef.current || !isMapLoaded) return;
+    
+    const allLayers = [
+      // Saved mission waypoint lines (paths)
+      new LineLayer({
+        id: 'mission-lines',
+        data: lineData,
+        getSourcePosition: d => d.sourcePosition,
+        getTargetPosition: d => d.targetPosition,
+        getColor: d => d.color,
+        getWidth: d => d.width,
+        widthUnits: 'pixels',
+        pickable: true,
+        beforeId: 'watername_ocean'
+      }),
+      // Saved mission waypoints (circles)
+      new ScatterplotLayer({
+        id: 'mission-waypoints',
+        data: waypointData,
+        getPosition: d => d.position,
+        getFillColor: d => d.color,
+        getRadius: d => d.radius,
+        radiusUnits: 'pixels',
+        pickable: true,
+        beforeId: 'watername_ocean'
+      }),
+      // Saved waypoint sequence numbers
+      new TextLayer({
+        id: 'waypoint-labels',
+        data: textData,
+        getPosition: d => d.position,
+        getText: d => d.text,
+        getColor: d => d.color,
+        getSize: d => d.size,
+        sizeUnits: 'pixels',
+        fontFamily: 'Arial, sans-serif',
+        fontWeight: 'bold',
+        beforeId: 'watername_ocean'
+      }),
+      // Preview waypoint lines (if editing)
+      ...(previewData.lineData.length > 0 ? [
+        new LineLayer({
+          id: 'preview-lines',
+          data: previewData.lineData,
+          getSourcePosition: d => d.sourcePosition,
+          getTargetPosition: d => d.targetPosition,
+          getColor: d => d.color,
+          getWidth: d => d.width,
+          widthUnits: 'pixels',
+          pickable: false,
+          beforeId: 'watername_ocean'
+        })
+      ] : []),
+      // Preview waypoints (if editing)
+      ...(previewData.waypointData.length > 0 ? [
+        new ScatterplotLayer({
+          id: 'preview-waypoints',
+          data: previewData.waypointData,
+          getPosition: d => d.position,
+          getFillColor: d => d.color,
+          getRadius: d => d.radius,
+          radiusUnits: 'pixels',
+          pickable: true,
+          onClick: (info) => {
+            if (info.object && editMode !== 'none') {
+              const waypointId = info.object.waypointId;
+              const waypoint = draftWaypoints.find(w => w.id === waypointId);
+              if (waypoint) {
+                setSelectedWaypoint(waypoint);
+              }
+            }
+          },
+          beforeId: 'watername_ocean'
+        })
+      ] : []),
+      // Preview waypoint labels (if editing)
+      ...(previewData.textData.length > 0 ? [
+        new TextLayer({
+          id: 'preview-labels',
+          data: previewData.textData,
+          getPosition: d => d.position,
+          getText: d => d.text,
+          getColor: d => d.color,
+          getSize: d => d.size,
+          sizeUnits: 'pixels',
+          fontFamily: 'Arial, sans-serif',
+          fontWeight: 'bold',
+          beforeId: 'watername_ocean'
+        })
+      ] : [])
+    ];
+    
+    if (deckOverlayRef.current) {
+      deckOverlayRef.current.setProps({ layers: allLayers });
+    }
+  }, [waypointData, lineData, textData, previewData, isMapLoaded, draftWaypoints, editMode]);
+  
+  // Handle map clicks in edit mode
+  useEffect(() => {
+    if (!map.current || !isMapLoaded || editMode === 'none') return;
+    
+    const handleClick = (e: maplibregl.MapMouseEvent) => {
+      
+      // Add new waypoint at clicked location
+      const lng = e.lngLat.lng;
+      const lat = e.lngLat.lat;
+      
+      // Check maximum waypoint limit
+      if (draftWaypoints.length >= MISSION_CONSTRAINTS.maxWaypoints) {
+        setValidationMessage(`Maximum ${MISSION_CONSTRAINTS.maxWaypoints} waypoints allowed`);
+        setTimeout(() => setValidationMessage(null), 3000);
+        return;
+      }
+      
+      // Add new waypoint with default altitude
+      const newWaypoint: Waypoint = {
+        id: generateWaypointId(),
+        coordinates: {
+          latitude: lat,
+          longitude: lng,
+          altitude: 50 // Default altitude
+        },
+        sequence: draftWaypoints.length + 1
+      };
+      
+      setDraftWaypoints([...draftWaypoints, newWaypoint]);
+      setValidationMessage(null);
+    };
+    
+    map.current.on('click', handleClick);
+    
+    return () => {
+      if (map.current) {
+        map.current.off('click', handleClick);
+      }
+    };
+  }, [map.current, isMapLoaded, editMode, draftWaypoints]);
+  
+  // Start editing new mission
+  const handleNewMission = () => {
+    setEditMode('new');
+    setEditingMissionId(null);
+    setDraftWaypoints([]);
+    setSelectedWaypoint(null);
+    setNewMissionName('');
+    setNewMissionPriority(5);
+    setValidationMessage(null);
+  };
+  
+  // Start editing existing mission
+  // TODO: This function can be called from BulletinPanel or other components to enable editing
+  // Currently unused but kept for future integration with mission list UI
+  const handleEditMission = (missionId: string) => {
+    const mission = fleet.getMissionById(missionId);
+    if (!mission) return;
+    
+    setEditMode('edit');
+    setEditingMissionId(missionId);
+    setDraftWaypoints([...mission.waypoints]);
+    setSelectedWaypoint(null);
+    setValidationMessage(null);
+  };
+  
+  // Save mission
+  const handleSave = async () => {
+    if (draftWaypoints.length < MISSION_CONSTRAINTS.minWaypoints) {
+      setValidationMessage(`At least ${MISSION_CONSTRAINTS.minWaypoints} waypoint required`);
+      setTimeout(() => setValidationMessage(null), 3000);
+      return;
+    }
+    
+    if (editMode === 'new') {
+      if (!newMissionName.trim()) {
+        setValidationMessage('Mission name is required');
+        setTimeout(() => setValidationMessage(null), 3000);
+        return;
+      }
+      
+      await fleet.addMission({
+        name: newMissionName,
+        waypoints: draftWaypoints.map(w => ({
+          coordinates: w.coordinates,
+          sequence: w.sequence
+        })),
+        priority: newMissionPriority
+      });
+    } else if (editMode === 'edit' && editingMissionId) {
+      await fleet.updateMission(editingMissionId, {
+        waypoints: draftWaypoints.map(w => ({
+          coordinates: w.coordinates,
+          sequence: w.sequence
+        }))
+      });
+    }
+    
+    handleCancel();
+  };
+  
+  // Cancel editing
+  const handleCancel = () => {
+    setEditMode('none');
+    setEditingMissionId(null);
+    setDraftWaypoints([]);
+    setSelectedWaypoint(null);
+    setNewMissionName('');
+    setNewMissionPriority(5);
+    setValidationMessage(null);
+  };
+  
+  // Handle waypoint save from editor
+  const handleWaypointSave = (updatedWaypoint: Waypoint) => {
+    setDraftWaypoints(draftWaypoints.map(w => 
+      w.id === updatedWaypoint.id ? updatedWaypoint : w
+    ));
+    
+    // Renumber sequences
+    const sorted = sortWaypointsBySequence(draftWaypoints.map(w => 
+      w.id === updatedWaypoint.id ? updatedWaypoint : w
+    ));
+    const renumbered = sorted.map((w, idx) => ({ ...w, sequence: idx + 1 }));
+    setDraftWaypoints(renumbered);
+    
+    setSelectedWaypoint(null);
+  };
+  
+  // Handle waypoint delete
+  const handleWaypointDelete = (waypointId: string) => {
+    const filtered = draftWaypoints.filter(w => w.id !== waypointId);
+    // Renumber sequences
+    const renumbered = filtered.map((w, idx) => ({ ...w, sequence: idx + 1 }));
+    setDraftWaypoints(renumbered);
+    setSelectedWaypoint(null);
+  };
+  
   return (
-    <div className={`w-full h-full ${className}`} style={{ height: '100vh' }}>
+    <div className={`w-full h-full ${className}`} style={{ height: '100vh', position: 'relative' }}>
       <div ref={mapContainer} className="w-full h-full" style={{ height: '100%' }} />
       
       {/* Mission Status Legend */}
-      {isMapLoaded && (
+      {isMapLoaded && editMode === 'none' && (
         <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
           <h3 className="text-sm font-semibold text-gray-800 mb-2">Mission Status</h3>
           <div className="space-y-1 text-xs">
@@ -173,6 +423,107 @@ export function MapContainer({ className = '' }: MapContainerProps) {
         </div>
       )}
       
+      {/* Editor Controls */}
+      {isMapLoaded && (
+        <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10">
+          {editMode === 'none' ? (
+            <div className="space-y-2">
+              <button
+                onClick={handleNewMission}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                New Mission
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 min-w-[200px]">
+              {/* Edit Mode Banner */}
+              <div className={`p-2 rounded text-xs font-semibold text-center ${editMode === 'new' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                {editMode === 'new' ? 'Creating New Mission' : 'Editing Mission'}
+              </div>
+              
+              {/* Mission Name (for new missions) */}
+              {editMode === 'new' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mission Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newMissionName}
+                    onChange={(e) => setNewMissionName(e.target.value)}
+                    placeholder="Enter mission name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+              )}
+              
+              {/* Mission Priority (for new missions) */}
+              {editMode === 'new' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Priority (1-10)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={newMissionPriority}
+                    onChange={(e) => setNewMissionPriority(parseInt(e.target.value, 10) || 5)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                </div>
+              )}
+              
+              {/* Waypoint Count */}
+              <div className="text-sm text-gray-600">
+                Waypoints: {draftWaypoints.length} / {MISSION_CONSTRAINTS.maxWaypoints}
+              </div>
+              
+              {/* Instructions */}
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>• Click on map to add waypoints</p>
+                <p>• Click waypoints to edit</p>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex space-x-2 pt-2">
+                <button
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+              
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Validation Message */}
+      {validationMessage && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-lg z-20">
+          {validationMessage}
+        </div>
+      )}
+      
+      {/* Waypoint Editor */}
+      {selectedWaypoint && (
+        <WaypointEditor
+          waypoint={selectedWaypoint}
+          onSave={handleWaypointSave}
+          onDelete={handleWaypointDelete}
+          onClose={() => setSelectedWaypoint(null)}
+        />
+      )}
+      
       {!isMapLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
           <div className="flex flex-col items-center space-y-2">
@@ -181,7 +532,6 @@ export function MapContainer({ className = '' }: MapContainerProps) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
