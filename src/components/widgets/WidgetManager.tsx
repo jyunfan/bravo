@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { WidgetContainer, type WidgetConfig } from './WidgetContainer';
 import { DroneTelemetryWidget } from './DroneTelemetryWidget';
+import { FleetStatusWidget } from './FleetStatusWidget';
 import { useFleet } from '../../contexts/FleetContext.tsx';
 
 interface WidgetManagerProps {
@@ -19,6 +20,18 @@ const getDefaultWidgets = (): WidgetConfig[] => [
     id: 'telemetry-1',
     type: 'telemetry',
     title: 'Drone Telemetry',
+    x: 100,
+    y: Math.max(window.innerHeight - 300, 0), // Position near right edge, accounting for bulletin panel
+    width: 250,
+    height: 300,
+    minWidth: 200,
+    minHeight: 200,
+    visible: true
+  },
+  {
+    id: 'fleet-status-1',
+    type: 'fleet-status',
+    title: 'Fleet Status',
     x: 100,
     y: Math.max(window.innerHeight - 300, 0), // Position near right edge, accounting for bulletin panel
     width: 250,
@@ -75,15 +88,8 @@ export function WidgetManager({ className = '' }: WidgetManagerProps) {
   const updateWidget = (id: string, updates: Partial<WidgetConfig>) => {
     setWidgets(prev => prev.map(widget => {
       if (widget.id === id) {
-        const updated = { ...widget, ...updates };
-        // Ensure the widget stays within bounds
-        if (updates.x !== undefined) {
-          updated.x = Math.max(0, Math.min(updates.x, window.innerWidth - updated.width));
-        }
-        if (updates.y !== undefined) {
-          updated.y = Math.max(0, Math.min(updates.y, window.innerHeight - updated.height));
-        }
-        return updated;
+        // react-rnd already handles bounds for drag operations, so trust the position
+        return { ...widget, ...updates };
       }
       return widget;
     }));
@@ -103,6 +109,8 @@ export function WidgetManager({ className = '' }: WidgetManagerProps) {
             drone={state.drones.find(d => d.status === 'in-mission') || state.drones[0]} 
           />
         );
+      case 'fleet-status':
+        return <FleetStatusWidget />;
       default:
         return (
           <div className="p-4 text-center text-gray-500">

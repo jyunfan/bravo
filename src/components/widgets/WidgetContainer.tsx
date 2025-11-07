@@ -4,7 +4,7 @@
  * Draggable and resizable widget container using react-rnd
  */
 
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
 
 export interface WidgetConfig {
@@ -28,15 +28,25 @@ interface WidgetContainerProps {
 }
 
 export function WidgetContainer({ config, children, onUpdate, onClose }: WidgetContainerProps) {
-  const handleDragStop = (data: any) => {
-    // Ensure the widget stays within bounds
-    const boundedX = Math.max(0, Math.min(data.x, window.innerWidth - config.width));
-    const boundedY = Math.max(0, Math.min(data.y, window.innerHeight - config.height));
-    
-    onUpdate(config.id, { x: boundedX, y: boundedY });
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleDragStop = (_e: any, data: { x: number; y: number }) => {
+    // react-rnd already handles bounds with bounds="window", so use the position directly
+    onUpdate(config.id, { x: data.x, y: data.y });
   };
 
-  const handleResizeStop = (ref: any, position: any) => {
+  const handleResizeStart = useCallback(() => {
+    setIsResizing(true);
+  }, []);
+
+  const handleResize = useCallback((_e: any) => {
+    // This is called during resize, but we don't update state here
+    // to prevent the resize from continuing after mouse release
+  }, []);
+
+  const handleResizeStop = useCallback((_e: MouseEvent | TouchEvent, _direction: string, ref: HTMLElement, _delta: { width: number; height: number }, position: { x: number; y: number }) => {
+    setIsResizing(false);
+    
     const newWidth = parseInt(ref.style.width);
     const newHeight = parseInt(ref.style.height);
     
@@ -50,7 +60,28 @@ export function WidgetContainer({ config, children, onUpdate, onClose }: WidgetC
       x: boundedX,
       y: boundedY,
     });
-  };
+  }, [config.id, onUpdate]);
+
+  // Ensure resize stops when mouse is released anywhere
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    const handleTouchEnd = () => {
+      setIsResizing(false);
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isResizing]);
 
   if (!config.visible) {
     return null;
@@ -61,6 +92,8 @@ export function WidgetContainer({ config, children, onUpdate, onClose }: WidgetC
       size={{ width: config.width, height: config.height }}
       position={{ x: config.x, y: config.y }}
       onDragStop={handleDragStop}
+      onResizeStart={handleResizeStart}
+      onResize={handleResize}
       onResizeStop={handleResizeStop}
       minWidth={config.minWidth || 200}
       minHeight={config.minHeight || 150}

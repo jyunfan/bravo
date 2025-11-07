@@ -8,4 +8,10 @@ export default defineConfig({
   preview: {
     allowedHosts: ['localhost', '127.0.0.1', '0.0.0.0', 'starfish-app-nqxaj.ondigitalocean.app'],
   },
+  // @ts-expect-error - Vitest types
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/__tests__/setup.ts',
+  },
 })

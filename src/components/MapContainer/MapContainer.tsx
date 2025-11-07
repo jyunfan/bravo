@@ -391,8 +391,8 @@ export function MapContainer({ className = '' }: MapContainerProps) {
     <div className={`w-full h-full ${className}`} style={{ height: '100vh', position: 'relative' }}>
       <div ref={mapContainer} className="w-full h-full" style={{ height: '100%' }} />
       
-      {/* Mission Status Legend */}
-      {isMapLoaded && editMode === 'none' && (
+      {/* Hide Mission Status Legend */}
+      {false && isMapLoaded && editMode === 'none' && (
         <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 max-w-xs">
           <h3 className="text-sm font-semibold text-gray-800 mb-2">Mission Status</h3>
           <div className="space-y-1 text-xs">
@@ -425,8 +425,8 @@ export function MapContainer({ className = '' }: MapContainerProps) {
         </div>
       )}
       
-      {/* Editor Controls */}
-      {isMapLoaded && (
+      {/* Hide Editor Controls */}
+      {false && isMapLoaded && (
         <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10">
           {editMode === 'none' ? (
             <div className="space-y-2">
