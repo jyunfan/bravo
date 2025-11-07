@@ -20,7 +20,7 @@ const getDefaultWidgets = (): WidgetConfig[] => [
     id: 'telemetry-1',
     type: 'telemetry',
     title: 'Drone Telemetry',
-    x: 100,
+    x: window.innerWidth - 250,
     y: Math.max(window.innerHeight - 300, 0), // Position near right edge, accounting for bulletin panel
     width: 250,
     height: 300,
@@ -32,8 +32,8 @@ const getDefaultWidgets = (): WidgetConfig[] => [
     id: 'fleet-status-1',
     type: 'fleet-status',
     title: 'Fleet Status',
-    x: 100,
-    y: Math.max(window.innerHeight - 300, 0), // Position near right edge, accounting for bulletin panel
+    x: 200,
+    y: 0, // Position near right edge, accounting for bulletin panel
     width: 250,
     height: 300,
     minWidth: 200,
